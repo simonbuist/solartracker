@@ -4,6 +4,8 @@ import geocoder as g
 from sun import sunPosition
 
 # https://www.nrel.gov/docs/fy13osti/58891.pdf
+
+# find optimal rotation based on axis and sun positions
 def optimalRotationInternal(axisTilt, axisAzimuth, sunElevation, sunAzimuth, limit):
     axisTilt = np.radians(axisTilt)
     axisAzimuth = np.radians(axisAzimuth)
@@ -27,12 +29,14 @@ def optimalRotationInternal(axisTilt, axisAzimuth, sunElevation, sunAzimuth, lim
     
     return R
 
+# find tilt of the surface based on rotation and tilt of the axis
 def surfaceTilt(axisRotation, axisTilt):
     axisTilt = np.radians(axisTilt)
     Rrad = np.radians(axisRotation)
     zenith = np.arccos(np.cos(Rrad)*np.cos(axisTilt))
     return np.degrees(zenith)
 
+# find the azimuth of the surface based on rotation and tilt of the axis, as well as tilt fo the surface
 # must calculate surfaceTilt first
 def surfaceAzimuth(axisRotation, surfaceTilt, axisAzimuth):
     axisRotationRadians = np.radians(axisRotation)
@@ -42,6 +46,7 @@ def surfaceAzimuth(axisRotation, surfaceTilt, axisAzimuth):
     surfaceAzimuth = axisAzimuth + np.arcsin(np.sin(axisRotationRadians)/np.sin(surfaceTiltRadians))
     return np.degrees(surfaceAzimuth)
 
+# find the incidence angle of the sun and the surface
 def incidenceAngle(axisRotation, axisTilt, axisAzimuth, sunElevation, sunAzimuth): 
     axisRotation = np.radians(axisRotation)
     axisTilt = np.radians(axisTilt)
@@ -64,7 +69,8 @@ def incidenceAngle(axisRotation, axisTilt, axisAzimuth, sunElevation, sunAzimuth
 
     return adjusted
 
-
+# find ideal rotation based on axis and sun position
+# just a wrapper for optimalRotationInternal()
 def optimalRotation(axisTilt, sunPosition, rotationMax):
     axisAzimuth = 180
     sunAzimuth = sunPosition[:, 0]
@@ -80,10 +86,12 @@ def optimalRotation(axisTilt, sunPosition, rotationMax):
     return rotation
 
 
+# process to find ideal tilt of the axis based on sun position
 def optimalTilt(sunPosition, tiltMax, rotationMax):
     sunAzimuth = sunPosition[:, 0]
     sunTrueElevation = sunPosition[:, 1]
 
+    # only consider sun when it is above horizon
     axisAzimuth = 180
     sunElevation = np.empty((1440,))
     for i in range(1440):
@@ -94,22 +102,23 @@ def optimalTilt(sunPosition, tiltMax, rotationMax):
 
     # find the best angle to (to 10^1 precision)
     averageIncidence = {}
+    # for various tilts, find the average incidence throughout the day
     for axisTilt in np.linspace(0, tiltMax, 10):
         incidence = incidenceAngle(optimalRotationInternal(axisTilt, axisAzimuth, sunElevation, sunAzimuth, rotationMax), axisTilt, axisAzimuth, sunElevation, sunAzimuth)
+        # store in a dict
         averageIncidence[np.average(incidence)] = axisTilt
 
-    # find the best angle to (to 10^-1 precision)
+    # lowest average incidence angle is the best fit
     fit = sorted(averageIncidence.keys())
+
+    # find the best angle to (to 10^-1 precision)
+    # repeat process with more precise tilts
     for axisTilt in np.linspace(averageIncidence[fit[0]] - 5, averageIncidence[fit[0]] + 5, 101):
         incidence = incidenceAngle(optimalRotationInternal(axisTilt, axisAzimuth, sunElevation, sunAzimuth, rotationMax), axisTilt, axisAzimuth, sunElevation, sunAzimuth)
         averageIncidence[np.average(incidence)] = axisTilt
 
+    # take best result
     fit = sorted(averageIncidence.keys())
 
+    # ensure it's returned to 1 decimal place
     return round(averageIncidence[fit[0]], 1)
-
-
-def optimalAngleAnalytic(sunPosition):
-    return
-
-
