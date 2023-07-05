@@ -4,8 +4,8 @@
 BluetoothSerial ESPbt;
 
 const int in1 = 14;
-const int in2 = 27; 
-const int in3 = 26;
+const int in2 = 26; 
+const int in3 = 27;
 const int in4 = 25;
 
 Stepper stepper(2038, in1, in2, in3, in4);
@@ -41,7 +41,7 @@ void setup()
   
   // speed is in RPM
   stepper.setSpeed(3);
-  int currPos = 0;
+  int currPos = -283;
   for (int i = 0; i < numPositions; i++) {
     stepper.step(positions[i] - currPos); // relative movement
     currPos = positions[i];
